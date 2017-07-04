@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 import datetime
@@ -6,6 +7,7 @@ import getpass
 import requests
 import json
 import time
+import logging
 
 def parser():
     import argparse
@@ -14,6 +16,7 @@ def parser():
     parser.add_argument('dbname', type=str, help='DB name to operate')
     parser.add_argument('-d', '--date', type=str, help='Date format YYYYMMDD (ex. 20170621)')
     parser.add_argument('-c', '--count', type=int, help='Number traded date')
+    parser.add_argument('-f', '--log-file', nargs='?', default='default', help='Enable logging to a file, omit default log file')
 
     return parser
 
@@ -30,7 +33,7 @@ def get_tse_price_info(date):
     page = requests.get(url, params=query_params)
 
     if not page.ok:
-        print('Can\'t get TSE page for date %s' % date)
+        logging.error('Can\'t get %s' % page.url)
         return None
 
     content = page.json()
@@ -38,7 +41,7 @@ def get_tse_price_info(date):
     try:
         data = content['data5']
     except KeyError as e:
-        print('Can\'t get TSE price data')
+        logging.error('No \'data5\' key in %s' % page.url)
         return None
 
     return data
@@ -58,7 +61,7 @@ def update_price_info(dbname, date, data):
             low_p = float(row[7])
             close_p = float(row[8])
         except ValueError as e:
-            print('%s: %s: Can\'t convert price data' % (stockno, date))
+            logging.error('%s: %s: price data can\'t covert' % (stockno, date))
             continue
 
         #print('%s,%s,%d,%f,%f,%f,%f' % (date, stockno, traded_share, open_p, high_p, low_p, close_p))
@@ -103,7 +106,7 @@ def get_tse_trade_info(date):
     page = requests.get(url, params=query_params)
 
     if not page.ok:
-        print('Can\'t get TSE page for trade info %s' % date)
+        logging.error('Can\'t get %s' % page.url)
         return None
 
     content = page.json()
@@ -111,7 +114,7 @@ def get_tse_trade_info(date):
     try:
         data = content['data']
     except KeyError as e:
-        print('Can\'t get TSE trade info')
+        logging.error('No \'data\' key in %s' % page.url)
         return None
 
     return data
@@ -132,7 +135,7 @@ def update_trade_info(dbname, date, data):
                 tmp += num
             l_trade = int(tmp)
         except ValueError as e:
-            print('%s: %s: Can\'t convert trade info' % (stockno, date))
+            logging.error('%s: %s: trade info can\'t convert' % (stockno, date))
             continue
 
         #print('%s: f_trade = %d, l_trade = %d' % (stockno, f_trade, l_trade))
@@ -187,6 +190,18 @@ def update_trade_info(dbname, date, data):
 def main(argv):
     args = parser().parse_args(argv[1:])
 
+    log_dir = '%s/log' % os.getcwd()
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+    log_file = args.log_file
+    if log_file == "default":
+        log_file = '%s/%s.log' % (log_dir,
+                    datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+
+    logging.basicConfig(filename=log_file, level=logging.ERROR,
+                        format='%(asctime)s\t%(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
+
     # if date is None, use current time
     if args.date == None:
         date = datetime.datetime.now().strftime('%Y%m%d')
@@ -197,7 +212,7 @@ def main(argv):
     try:
         datetime_obj = datetime.datetime.strptime(date, '%Y%m%d')
     except ValueError as e:
-        print('Invalid Date: %s' % date)
+        logging.error('Invalid Date: %s' % date)
         sys.exit(1)
 
     # check dbname
@@ -205,7 +220,7 @@ def main(argv):
         conn = psycopg2.connect(database=args.dbname, user=getpass.getuser())
         conn.close()
     except Exception as e:
-        print('Database Error: %s' % e)
+        logging.error('Database Error: %s' % e)
         sys.exit(1)
 
     if args.count:
