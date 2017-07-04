@@ -30,7 +30,7 @@ def get_tse_price_info(date):
     page = requests.get(url, params=query_params)
 
     if not page.ok:
-        print('Can\'nt get TSE page for date %s' % date)
+        print('Can\'t get TSE page for date %s' % date)
         return None
 
     content = page.json()
@@ -38,7 +38,7 @@ def get_tse_price_info(date):
     try:
         data = content['data5']
     except KeyError as e:
-        print('Can\'nt get TSE price data')
+        print('Can\'t get TSE price data')
         return None
 
     return data
@@ -58,7 +58,7 @@ def update_price_info(dbname, date, data):
             low_p = float(row[7])
             close_p = float(row[8])
         except ValueError as e:
-            print('%s: %s: Can\'t convert data' % (stockno, date))
+            print('%s: %s: Can\'t convert price data' % (stockno, date))
             continue
 
         #print('%s,%s,%d,%f,%f,%f,%f' % (date, stockno, traded_share, open_p, high_p, low_p, close_p))
@@ -103,7 +103,7 @@ def get_tse_trade_info(date):
     page = requests.get(url, params=query_params)
 
     if not page.ok:
-        print('Can\'nt get TSE page for trade info %s' % date)
+        print('Can\'t get TSE page for trade info %s' % date)
         return None
 
     content = page.json()
@@ -111,7 +111,7 @@ def get_tse_trade_info(date):
     try:
         data = content['data']
     except KeyError as e:
-        print('Can\'nt get TSE trade info')
+        print('Can\'t get TSE trade info')
         return None
 
     return data
@@ -165,7 +165,7 @@ def update_trade_info(dbname, date, data):
                 conn.commit()
                 break
 
-        # check if column filled
+        # check if f_trade and l_trade column are filled
         cmd = 'select exists ( select 1 from "%s" where date =\'%s\' and f_trade is not null and l_trade is not null )' % (stockno, date)
         cursor.execute(cmd)
         rows = cursor.fetchall()
@@ -178,6 +178,7 @@ def update_trade_info(dbname, date, data):
             conn.close()
             continue
 
+        # update the row's f_trade and l_trade info
         cmd = 'update "%s" set f_trade = %d, l_trade = %d where date = \'%s\'' % (stockno, f_trade, l_trade, date)
         cursor.execute(cmd)
         conn.commit()
