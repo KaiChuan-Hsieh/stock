@@ -8,7 +8,7 @@ def parser():
 
     parser = argparse.ArgumentParser(description='Rate of return of foreign currency')
     parser.add_argument('invest', type=float, help='Investment (NT dolloar)')
-    parser.add_argument('--base', type=str, nargs=1, help='The base currency (ex. TWD)')
+    parser.add_argument('--base', type=str, default='TWD', help='The base currency (ex. TWD)')
     parser.add_argument('-u', '--usd', type=float, nargs=1, help='Having U.S. currency')
     parser.add_argument('-a', '--aud', type=float, nargs=1, help='Having Australia currency')
     parser.add_argument('-e', '--eur', type=float, nargs=1, help='Having European currency')
@@ -37,12 +37,7 @@ def fcurrencyrates(base):
 def main(argv):
     args = parser().parse_args(argv[1:])
 
-    if not args.base:
-        base = 'TWD'
-    else:
-        base = args.base[0]
-
-    rates = fcurrencyrates(base)
+    rates = fcurrencyrates(args.base)
 
     if args.usd:
         usd_e = args.usd[0]/rates['USD']
