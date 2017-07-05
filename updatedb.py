@@ -190,11 +190,11 @@ def update_trade_info(dbname, date, data):
 def main(argv):
     args = parser().parse_args(argv[1:])
 
-    log_dir = '%s/log' % os.getcwd()
-    if not os.path.isdir(log_dir):
-        os.makedirs(log_dir)
     log_file = args.log_file
     if log_file == "default":
+        log_dir = '%s/log' % os.getcwd()
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
         log_file = '%s/%s.log' % (log_dir,
                     datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
 
