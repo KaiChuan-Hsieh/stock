@@ -61,7 +61,7 @@ def update_price_info(dbname, date, data):
             low_p = float(row[7])
             close_p = float(row[8])
         except ValueError as e:
-            logging.error('%s: %s: price data can\'t covert' % (stockno, date))
+            logging.error('%s: %s: price data can\'t convert' % (stockno, date))
             continue
 
         #print('%s,%s,%d,%f,%f,%f,%f' % (date, stockno, traded_share, open_p, high_p, low_p, close_p))
