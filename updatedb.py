@@ -81,7 +81,7 @@ def update_price_info(dbname, date, data):
                 break
 
         # check if row exist
-        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and open > 0 )' % (stockno, date)
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and open > 0 and high > 0 and low > 0 and close > 0 )' % (stockno, date)
         cursor.execute(cmd)
         rows = cursor.fetchall()
         for row in rows:
