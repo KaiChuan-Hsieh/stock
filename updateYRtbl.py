@@ -14,7 +14,6 @@ def parser():
     parser = argparse.ArgumentParser(description='Create/Update U.S. yield table')
     parser.add_argument('dbname', type=str, help='DB name')
     parser.add_argument('-f', '--log-file', nargs='?', default='default', help='Enable logging to a file, omit default log file')
-    parser.add_argument('-n', '--tbl-name', nargs='?', default='USTY', help='Storing table name')
 
     return parser
 
@@ -89,25 +88,85 @@ def update_USTY_tbl(dbname, tbl_name, xml_doc):
 
     conn.close()
 
+def get_DEBY():
+    from selenium import webdriver
+    driver = webdriver.PhantomJS(executable_path='/usr/bin/phantomjs')
+    url = 'https://www.investing.com/rates-bonds/germany-10-year-bond-yield-historical-data'
+    try:
+        driver.get(url)
+        pageSource = driver.page_source
+    except:
+        logging.error('DEBY html retrieve failed')
+        pageSource = None
+
+    driver.close()
+
+    return pageSource
+
+def update_DEBY_tbl(dbname, tbl_name, xml_doc):
+    conn = psycopg2.connect(database=dbname, user=getpass.getuser())
+    cursor = conn.cursor()
+    cmd = 'select exists ( select 1 from information_schema.tables where table_name = \'%s\' )' % tbl_name
+    cursor.execute(cmd)
+    rows = cursor.fetchall()
+    for row in rows:
+        if not row[0]:
+            # not exist, create table
+            cmd = 'create table "%s" ( date date, y10 real )' % tbl_name
+            cursor.execute(cmd)
+            conn.commit()
+
+    soup = BeautifulSoup(xml_doc, 'lxml')
+    table = soup.find('table', 'genTbl closedTbl historicalTbl')
+    tbody = table.find('tbody')
+    rows = tbody.find_all('tr')
+
+    for row in rows:
+        td = row.find('td')
+        dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
+        dt_str = dt.strftime('%Y%m%d')
+        price_str = td.next_sibling.next_sibling.get_text(strip=True)
+        price = float(price_str)
+
+        # row exist
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and y10 is not null )' % (tbl_name, dt_str)
+        cursor.execute(cmd)
+        rows = cursor.fetchall()
+        for row in rows:
+            # check row
+            if not row[0]:
+                cmd = 'insert into "%s" values ( \'%s\', %f ) ' % (tbl_name, dt_str, price)
+                cursor.execute(cmd)
+                conn.commit()
+
+    conn.close()
+
 def main(argv):
     args = parser().parse_args(argv[1:])
 
     log_file = args.log_file
     if log_file == "default":
         log_dir = '%s/log' % os.getcwd()
-        log_file = '%s/updateUSTY.log' % log_dir
+        log_file = '%s/updateYRtbl.log' % log_dir
 
     logging.basicConfig(filename=log_file, level=logging.ERROR,
                         format='%(asctime)s\t%(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S')
 
-    tbl_name = args.tbl_name
     xml_doc = get_USTY()
 
     if xml_doc:
-        update_USTY_tbl(args.dbname, tbl_name, xml_doc)
+        update_USTY_tbl(args.dbname, 'USTY', xml_doc)
     else:
-        raise RuntimeError('No data')
+        logging.error('No USTY data')
+
+    html_doc = get_DEBY()
+
+    if html_doc:
+        update_DEBY_tbl(args.dbname, 'DEBY', html_doc)
+    else:
+        logging.error('No DEBY data')
+
 
 if __name__ == '__main__':
     try:
