@@ -95,7 +95,7 @@ def main(argv):
     log_file = args.log_file
     if log_file == "default":
         log_dir = '%s/log' % os.getcwd()
-    log_file = '%s/updateUSTY.log' % log_dir
+        log_file = '%s/updateUSTY.log' % log_dir
 
     logging.basicConfig(filename=log_file, level=logging.ERROR,
                         format='%(asctime)s\t%(message)s',
