@@ -85,13 +85,17 @@ def update_USTY_tbl(dbname, tbl_name, xml_doc):
                 cmd = 'insert into "%s" values ( \'%s\', %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f )' % ( tbl_name, dt_str, m1, m3, m6, y1, y2, y3, y5, y7, y10, y20, y30 )
                 cursor.execute(cmd)
                 conn.commit()
+            else:
+                cmd = 'update "%s" set ( m1, m3, m6, y1, y2, y3, y5, y7, y10, y20, y30 ) = ( %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f ) where date = \'%s\' ' % ( tbl_name, m1, m3, m6, y1, y2, y3, y5, y7, y10, y20, y30, dt_str )
+                cursor.execute(cmd)
+                conn.commit()
 
     conn.close()
 
-def get_DEBY():
+def get_page(url):
     from selenium import webdriver
     driver = webdriver.PhantomJS(executable_path='/usr/bin/phantomjs')
-    url = 'https://www.investing.com/rates-bonds/germany-10-year-bond-yield-historical-data'
+
     try:
         driver.get(url)
         pageSource = driver.page_source
@@ -138,6 +142,52 @@ def update_DEBY_tbl(dbname, tbl_name, xml_doc):
                 cmd = 'insert into "%s" values ( \'%s\', %f ) ' % (tbl_name, dt_str, price)
                 cursor.execute(cmd)
                 conn.commit()
+            else:
+                cmd = 'update "%s" set y10 = %f where date = \'%s\'' % (tbl_name, price, dt_str)
+                cursor.execute(cmd)
+                conn.commit()
+
+    conn.close()
+
+def update_DXY_tbl(dbname, tbl_name, xml_doc):
+    conn = psycopg2.connect(database=dbname, user=getpass.getuser())
+    cursor = conn.cursor()
+    cmd = 'select exists ( select 1 from information_schema.tables where table_name = \'%s\' )' % tbl_name
+    cursor.execute(cmd)
+    rows = cursor.fetchall()
+    for row in rows:
+        if not row[0]:
+            # not exist, create table
+            cmd = 'create table "%s" ( date date, price real )' % tbl_name
+            cursor.execute(cmd)
+            conn.commit()
+
+    soup = BeautifulSoup(xml_doc, 'lxml')
+    table = soup.find('table', 'instHistoryTbl')
+    tbody = table.find('tbody', 'js-history-data')
+    rows = tbody.find_all('tr')
+
+    for row in rows:
+        td = row.find('td')
+        dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
+        dt_str = dt.strftime('%Y%m%d')
+        price_str = td.next_sibling.next_sibling.get_text(strip=True)
+        price = float(price_str)
+
+        # row exist
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and price is not null )' % (tbl_name, dt_str)
+        cursor.execute(cmd)
+        rows = cursor.fetchall()
+        for row in rows:
+            # check row
+            if not row[0]:
+                cmd = 'insert into "%s" values ( \'%s\', %f ) ' % (tbl_name, dt_str, price)
+                cursor.execute(cmd)
+                conn.commit()
+            else:
+                cmd = 'update "%s" set price = %f where date = \'%s\'' % (tbl_name, price, dt_str)
+                cursor.execute(cmd)
+                conn.commit()
 
     conn.close()
 
@@ -160,12 +210,23 @@ def main(argv):
     else:
         logging.error('No USTY data')
 
-    html_doc = get_DEBY()
+    # Get DEBY page
+    url = 'https://www.investing.com/rates-bonds/germany-10-year-bond-yield-historical-data'
+    html_doc = get_page(url)
 
     if html_doc:
         update_DEBY_tbl(args.dbname, 'DEBY', html_doc)
     else:
         logging.error('No DEBY data')
+
+    # Get DXY page
+    url = 'https://m.investing.com/indices/usdollar-historical-data'
+    html_doc = get_page(url)
+
+    if html_doc:
+        update_DXY_tbl(args.dbname, 'DXY', html_doc)
+    else:
+        logging.error('No DXY data')
 
 
 if __name__ == '__main__':
