@@ -67,10 +67,12 @@ def main(argv):
         jpy_e = 0
 
     total_back = usd_e + aud_e + jpy_e + cny_e + eur_e
-    rate_of_return = (total_back - args.invest)/args.invest*100
+    revenue = total_back - args.invest
+    rate_of_return = revenue/args.invest*100
 
     print('Investment: %.2f' % args.invest)
     print('Exchange back: %.3f' % total_back)
+    print('Revenue: %.3f' % revenue)
     print('Rate of return: %.3f%%' % rate_of_return)
 
 if __name__ == '__main__':
