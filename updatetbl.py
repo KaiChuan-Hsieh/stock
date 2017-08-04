@@ -116,38 +116,51 @@ def update_DEBY_tbl(dbname, tbl_name, xml_doc):
     for row in rows:
         if not row[0]:
             # not exist, create table
-            cmd = 'create table "%s" ( date date, y10 real )' % tbl_name
+            cmd = 'create table "%s" ( date date, open real, high real, low real, close real )' % tbl_name
             cursor.execute(cmd)
             conn.commit()
 
     soup = BeautifulSoup(xml_doc, 'lxml')
     table = soup.find('table', 'genTbl closedTbl historicalTbl')
     tbody = table.find('tbody')
-    rows = tbody.find_all('tr')
+    tr = tbody.find('tr')
 
-    for row in rows:
-        td = row.find('td')
-        dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
-        dt_str = dt.strftime('%Y%m%d')
-        price_str = td.next_sibling.next_sibling.get_text(strip=True)
-        price = float(price_str)
+    while tr:
+        try:
+            td = tr.find('td')
+            dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
+            dt_str = dt.strftime('%Y%m%d')
+            td = td.next_sibling.next_sibling
+            cl = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            op = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            hi = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            lo = float(td.get_text(strip=True))
+        except:
+            logging.error('Can\'t convert DEBY data')
+            break
 
         # row exist
-        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and y10 is not null )' % (tbl_name, dt_str)
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and open is not null and high is not null and low is not null and close is not null )' % (tbl_name, dt_str)
         cursor.execute(cmd)
         rows = cursor.fetchall()
         for row in rows:
             # check row
             if not row[0]:
-                cmd = 'insert into "%s" values ( \'%s\', %f ) ' % (tbl_name, dt_str, price)
+                cmd = 'insert into "%s" values ( \'%s\', %f, %f, %f, %f ) ' % (tbl_name, dt_str, op, hi, lo, cl)
                 cursor.execute(cmd)
                 conn.commit()
             else:
-                cmd = 'update "%s" set y10 = %f where date = \'%s\'' % (tbl_name, price, dt_str)
+                cmd = 'update "%s" set (open, high, low, close) = (%f, %f, %f, %f)  where date = \'%s\'' % (tbl_name, op, hi, lo, cl, dt_str)
                 cursor.execute(cmd)
                 conn.commit()
 
+        tr = tr.next_sibling.next_sibling
+
     conn.close()
+    soup.clear()
 
 def update_DXY_tbl(dbname, tbl_name, xml_doc):
     conn = psycopg2.connect(database=dbname, user=getpass.getuser())
@@ -158,38 +171,112 @@ def update_DXY_tbl(dbname, tbl_name, xml_doc):
     for row in rows:
         if not row[0]:
             # not exist, create table
-            cmd = 'create table "%s" ( date date, price real )' % tbl_name
+            cmd = 'create table "%s" ( date date, open real, high real, low real, close real )' % tbl_name
             cursor.execute(cmd)
             conn.commit()
 
     soup = BeautifulSoup(xml_doc, 'lxml')
     table = soup.find('table', 'instHistoryTbl')
     tbody = table.find('tbody', 'js-history-data')
-    rows = tbody.find_all('tr')
+    tr = tbody.find('tr')
 
-    for row in rows:
-        td = row.find('td')
-        dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
-        dt_str = dt.strftime('%Y%m%d')
-        price_str = td.next_sibling.next_sibling.get_text(strip=True)
-        price = float(price_str)
+    while tr:
+        try:
+            td = tr.find('td')
+            dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
+            dt_str = dt.strftime('%Y%m%d')
+            td = td.next_sibling.next_sibling
+            cl = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            op = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            hi = float(td.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            lo = float(td.get_text(strip=True))
+        except:
+            logging.error('Can\'t convert DXY data')
+            break
 
         # row exist
-        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and price is not null )' % (tbl_name, dt_str)
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and open is not null and high is not null and low is not null and close is not null )' % (tbl_name, dt_str)
         cursor.execute(cmd)
         rows = cursor.fetchall()
         for row in rows:
             # check row
             if not row[0]:
-                cmd = 'insert into "%s" values ( \'%s\', %f ) ' % (tbl_name, dt_str, price)
+                cmd = 'insert into "%s" values ( \'%s\', %f, %f, %f, %f ) ' % (tbl_name, dt_str, op, hi, lo, cl)
                 cursor.execute(cmd)
                 conn.commit()
             else:
-                cmd = 'update "%s" set price = %f where date = \'%s\'' % (tbl_name, price, dt_str)
+                cmd = 'update "%s" set (open, high, low, close) = (%f, %f, %f, %f) where date = \'%s\'' % (tbl_name, op, hi, lo, cl, dt_str)
                 cursor.execute(cmd)
                 conn.commit()
 
+        tr = tr.next_sibling.next_sibling
+
     conn.close()
+    soup.clear()
+
+def update_MOO_tbl(dbname, tbl_name, xml_doc):
+    conn = psycopg2.connect(database=dbname, user=getpass.getuser())
+    cursor = conn.cursor()
+    cmd = 'select exists ( select 1 from information_schema.tables where table_name = \'%s\' )' % tbl_name
+    cursor.execute(cmd)
+    rows = cursor.fetchall()
+    for row in rows:
+        if not row[0]:
+            # not exist, create table
+            cmd = 'create table "%s" ( date date, open real, high real, low real, close real, volume integer )' % tbl_name
+            cursor.execute(cmd)
+            conn.commit()
+
+    soup = BeautifulSoup(xml_doc, 'lxml')
+    tr = soup.find('tr', 'BdT')
+
+    while tr:
+        td = tr.find('td')
+        try:
+            dt = datetime.strptime(td.next_element.get_text(strip=True), '%b %d, %Y')
+            dt_str = dt.strftime('%Y%m%d')
+            td = td.next_sibling
+            po = float(td.next_element.get_text(strip=True))
+            td = td.next_sibling
+            ph = float(td.next_element.get_text(strip=True))
+            td = td.next_sibling
+            pl = float(td.next_element.get_text(strip=True))
+            td = td.next_sibling
+            pc = float(td.next_element.get_text(strip=True))
+            td = td.next_sibling.next_sibling
+            vol_str = td.next_element.get_text(strip=True)
+            ind = vol_str.find(',')
+            if ind:
+                vol = int(vol_str.replace(',', ''))
+            else:
+                vol = int(vol_str)
+        except:
+            print('Can\'t convert data!')
+            break
+
+        # row exist
+        cmd = 'select exists ( select 1 from "%s" where date = \'%s\' and open is not null and high is not null and low is not null and close is not null and volume is not null )' % (tbl_name, dt_str)
+        cursor.execute(cmd)
+        rows = cursor.fetchall()
+        for row in rows:
+            # check row
+            if not row[0]:
+                cmd = 'insert into "%s" values ( \'%s\', %f, %f, %f, %f, %d ) ' % (tbl_name, dt_str, po, ph, pl, pc, vol)
+                cursor.execute(cmd)
+                conn.commit()
+            else:
+                cmd = 'update "%s" set ( open, high, low, close, volume ) = ( %f, %f, %f, %f, %d ) where date = \'%s\'' % (tbl_name, po, ph, pl, pc, vol, dt_str)
+                cursor.execute(cmd)
+                conn.commit()
+
+        # to next row
+        tr = tr.next_sibling
+
+    conn.close()
+    soup.clear()
 
 def main(argv):
     args = parser().parse_args(argv[1:])
@@ -197,7 +284,7 @@ def main(argv):
     log_file = args.log_file
     if log_file == "default":
         log_dir = '%s/log' % os.getcwd()
-        log_file = '%s/updateYRtbl.log' % log_dir
+        log_file = '%s/updatetbl.log' % log_dir
 
     logging.basicConfig(filename=log_file, level=logging.ERROR,
                         format='%(asctime)s\t%(message)s',
@@ -227,6 +314,15 @@ def main(argv):
         update_DXY_tbl(args.dbname, 'DXY', html_doc)
     else:
         logging.error('No DXY data')
+
+    # Get MOO page
+    url = 'https://finance.yahoo.com/quote/MOO/history?p=MOO'
+    html_doc = get_page(url)
+
+    if html_doc:
+        update_MOO_tbl(args.dbname, 'MOO', html_doc)
+    else:
+        logging.error('No MOO data')
 
 
 if __name__ == '__main__':
