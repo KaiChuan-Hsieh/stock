@@ -217,7 +217,7 @@ def update_DXY_tbl(dbname, tbl_name, xml_doc):
     conn.close()
     soup.clear()
 
-def update_MOO_tbl(dbname, tbl_name, xml_doc):
+def update_yahoo_tbl(dbname, tbl_name, xml_doc):
     conn = psycopg2.connect(database=dbname, user=getpass.getuser())
     cursor = conn.cursor()
     cmd = 'select exists ( select 1 from information_schema.tables where table_name = \'%s\' )' % tbl_name
@@ -320,9 +320,18 @@ def main(argv):
     html_doc = get_page(url)
 
     if html_doc:
-        update_MOO_tbl(args.dbname, 'MOO', html_doc)
+        update_yahoo_tbl(args.dbname, 'MOO', html_doc)
     else:
         logging.error('No MOO data')
+
+    # Get RSX page
+    url = 'https://finance.yahoo.com/quote/RSX/history?p=RSX'
+    html_doc = get_page(url)
+
+    if html_doc:
+        update_yahoo_tbl(args.dbname, 'RSX', html_doc)
+    else:
+        logging.error('No RSX data')
 
 
 if __name__ == '__main__':
