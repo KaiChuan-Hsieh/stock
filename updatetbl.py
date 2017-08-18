@@ -100,14 +100,14 @@ def get_page(url):
         driver.get(url)
         pageSource = driver.page_source
     except:
-        logging.error('DEBY html retrieve failed')
+        logging.error('html retrieve failed')
         pageSource = None
 
     driver.close()
 
     return pageSource
 
-def update_DEBY_tbl(dbname, tbl_name, xml_doc):
+def update_investing_tbl(dbname, tbl_name, xml_doc):
     conn = psycopg2.connect(database=dbname, user=getpass.getuser())
     cursor = conn.cursor()
     cmd = 'select exists ( select 1 from information_schema.tables where table_name = \'%s\' )' % tbl_name
@@ -131,15 +131,35 @@ def update_DEBY_tbl(dbname, tbl_name, xml_doc):
             dt = datetime.strptime(td.get_text(strip=True), '%b %d, %Y')
             dt_str = dt.strftime('%Y%m%d')
             td = td.next_sibling.next_sibling
-            cl = float(td.get_text(strip=True))
+            cl_str = td.get_text(strip=True)
+            ind = cl_str.find(',')
+            if ind:
+                cl = float(cl_str.replace(',', ''))
+            else:
+                cl = float(cl_str)
             td = td.next_sibling.next_sibling
-            op = float(td.get_text(strip=True))
+            op_str = td.get_text(strip=True)
+            ind = op_str.find(',')
+            if ind:
+                op = float(op_str.replace(',', ''))
+            else:
+                op = float(op_str)
             td = td.next_sibling.next_sibling
-            hi = float(td.get_text(strip=True))
+            hi_str = td.get_text(strip=True)
+            ind = hi_str.find(',')
+            if ind:
+                hi = float(hi_str.replace(',', ''))
+            else:
+                hi = float(hi_str)
             td = td.next_sibling.next_sibling
-            lo = float(td.get_text(strip=True))
+            lo_str = td.get_text(strip=True)
+            ind = lo_str.find(',')
+            if ind:
+                lo = float(lo_str.replace(',', ''))
+            else:
+                lo = float(lo_str)
         except:
-            logging.error('Can\'t convert DEBY data')
+            logging.error('Can\'t convert %s data' % tbl_name)
             break
 
         # row exist
@@ -302,9 +322,18 @@ def main(argv):
     html_doc = get_page(url)
 
     if html_doc:
-        update_DEBY_tbl(args.dbname, 'DEBY', html_doc)
+        update_investing_tbl(args.dbname, 'DEBY', html_doc)
     else:
         logging.error('No DEBY data')
+
+    # Get BADI page
+    url = 'https://www.investing.com/indices/baltic-dry-historical-data'
+    html_doc = get_page(url)
+
+    if html_doc:
+        update_investing_tbl(args.dbname, 'BADI', html_doc)
+    else:
+        logging.error('No BADI data')
 
     # Get DXY page
     url = 'https://m.investing.com/indices/usdollar-historical-data'
